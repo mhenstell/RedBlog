@@ -1,6 +1,6 @@
 <section id="header">
 	<section id="siteTitle">
-		{{globalVars['siteTitle']}}
+		<a href="/">{{globalVars['siteTitle']}}</a>
 	</section id="siteTitle">
 	<section id="info">
 		Info

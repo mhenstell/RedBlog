@@ -6,7 +6,7 @@
 		<header>{{posts[post]['title']}}</header>
 		
 		<section id="dateline">
-			Submitted By: {{posts[post]['submitterId']}} on {{posts[post]['datestamp']}}
+			Submitted By: {{posts[post]['user']}} on {{posts[post]['datestamp']}}
 		</section>
 		
 		<section id="body">
