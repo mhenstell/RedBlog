@@ -45,8 +45,8 @@ def setPost():
 	datestamp = time.time()
 	handle = r.get('session:%s:handle'%(request.COOKIES.get('sessionId')))
 	
-	r.incr('nextPostId')
-	pid = r.get('nextPostId')
+	r.incr('global:nextPostId')
+	pid = r.get('global:nextPostId')
 	r.set('post:%s:title'%(pid), title)
 	r.set('post:%s:body'%(pid), body)
 	r.set('post:%s:datestamp'%(pid), datestamp)
@@ -58,8 +58,16 @@ def setPost():
 
 @route("/admin")
 def admin():
-	permissions = {}
-	return template('admin', globalVars=globalVars, permissions=permissions)
+
+	
+	userName = getCurrentUser()
+	if userName is None:
+		return template('error', globalVars=globalVars, error="Not Authorized.")
+	
+	userInfo = getUserInfo(userName)
+	
+	
+	return template('admin', globalVars=globalVars, userInfo=userInfo)
 	
 @route("/admin/login")
 def login():
@@ -68,10 +76,31 @@ def login():
 	sessionId = m.hexdigest()
 	response.set_cookie('sessionId', sessionId)
 	
-	r.set("session:%s:handle"%(sessionId), handle)
+	r.set("session:%s:userName"%(sessionId), handle)
 	
 	return getRecentPosts()
 
+
+def getCurrentUser():
+	sessionId = request.COOKIES.get('sessionId')
+	if sessionId is None:
+		return None
+	
+	userName = r.get('session:%s:userName'%(sessionId))
+	return userName
+
+
+
+def getUserInfo(userName):
+	userInfo = {}
+	userInfo['userName'] = userName
+	userInfo['realName'] = r.get("users:%s:realName"%(userName))
+	userInfo['email'] = r.get("users:%s:email"%(userName))
+	userInfo['submissions'] = r.lrange("users:%s:submissions"%(userName), 0, -1)
+	userInfo['role'] = r.lrange("users:%s:roles"%(userName), 0, -1)
+	
+	return userInfo
+	
 
 def getPostDictById(id):
 	title = r.get("post:%s:title"%(id))
@@ -90,16 +119,16 @@ def auth(type, request):
 		return False
 	print sessionId
 	
-	handle = r.get('session:%s:handle'%(sessionId))
+	userName = r.get('session:%s:userName'%(sessionId))
 	
-	print "Username: " + str(handle)
+	print "Username: " + str(userName)
 	
-	permissions = r.smembers('users:%s:permissions'%(handle))
+	permissions = r.smembers('users:%s:permissions'%(userName))
 	
 	print permissions
 	
 	if type in permissions:
-		print "User %s authorized for %s"%(handle, type)
+		print "User %s authorized for %s"%(userName, type)
 		return True
 
 
