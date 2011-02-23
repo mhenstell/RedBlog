@@ -64,6 +64,47 @@ article #body {
   border-width: 1px;
 }
 
+#postForm {
+  display: block;
+  float: none;
+  clear: right;
+
+}
+
+#postForm label{
+  float: left;
+  clear: left;
+  width: 2em;
+  margin-right: 2em;
+  margin-left: 2em;
+}
+
+#postForm #title {
+  width: 80%;
+}
+
+#postForm #body {
+  width: 80%;
+  height: 500px;
+}
+
+#postForm fieldset { 
+  padding: 0;
+  border-style: none;
+  margin: 0 0 0 0;      
+  padding: 1em 0 1em 0;      
+        
+  
+}
+
+#postForm fieldset.submit {
+  float: none;
+  width: auto;
+  border-style: none;     
+  padding-left: 12em;     
+  background-color: transparent;
+}
+
 h1 {
   padding-top: 10px;
 }

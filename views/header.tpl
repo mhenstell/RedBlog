@@ -1,6 +1,6 @@
 <section id="header">
 	<section id="siteTitle">
-		{{title}}
+		{{globalVars['siteTitle']}}
 	</section id="siteTitle">
 	<section id="info">
 		Info

@@ -17,4 +17,4 @@
 %end
 
 
-%rebase main title=siteTitle
+%rebase main globalVars=globalVars
