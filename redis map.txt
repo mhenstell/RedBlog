@@ -1,0 +1,39 @@
+redis map
+
+POST
+	post:pid:title
+	post:pid:body
+	post:pid:datestamp
+	post:pid:user
+	post:pid:summary
+	post:pid:tagIds
+
+POSTS
+	posts:recent
+
+SESSION
+	session:sid:userName
+
+ROLES
+	roles:role:prettyName
+	roles:role:permissions
+
+USERS
+	users:name:realName
+	users:name:email
+	users:name:submissions
+	users:name:roles
+
+THEMES
+	themes:theme:columns
+	themes:theme:column:blocks
+	themes:theme:location
+
+GLOBAL
+	global:nextPostId
+	global:nextUserId
+	global:siteName
+	global:siteURL
+	global:siteEmail
+	global:siteTimeZone
+	global:siteTheme
