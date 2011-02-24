@@ -1,16 +1,16 @@
 
 
-%for post in posts:
-
+%for post in passed:
+	%post=passed[post]
 	<article>
-		<header>{{posts[post]['title']}}</header>
+		<header>{{post['title']}}</header>
 		
 		<section id="dateline">
-			Submitted By: {{posts[post]['user']}} on {{posts[post]['datestamp']}}
+			Submitted By: {{post['user']}} on {{post['datestamp']}}
 		</section>
 		
 		<section id="body">
-			{{posts[post]['body']}}
+			{{post['body']}}
 		</section>
 	
 	</article>

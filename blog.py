@@ -9,9 +9,12 @@ from bottle import route, run, request, response, template, view, static_file
 r = redis.Redis(host='localhost', port=6380, db=0)
 
 session_opts = {
-    'session.type': 'cookie',
+    'session.type': 'redis',
+    'session.url': '127.0.0.1:6380',
     'session.cookie_expires': 300,
-    'session.auto': True
+    'session.auto': True,
+    'cookie_domain': '.evildoin.gs',
+    'key': 'evildoings'
     }
 
 app = SessionMiddleware(bottle.app(), session_opts)
@@ -23,8 +26,10 @@ def send_css(filename):
 @bottle.route('/test')
 def test():
 	s = bottle.request.environ.get('beaker.session')
+	
 	s['test'] = s.get('test',0) + 1
 	s.save()
+		
 	return 'Test counter: %d' % s['test']
 
 @route("/")
@@ -42,7 +47,13 @@ def getRecentPosts():
 	posts = {}
 	for x in range(0, len(recentPosts)):
 		posts[x] = getPost(recentPosts[x])
-	return template('recent', posts=posts, globalVars=globalVars)
+	
+	#return template('recent', posts=posts, globalVars=globalVars)
+	return render('recent', posts)
+
+def render(type, dict):
+	refreshSession()
+	return template(type, passed=dict, globalVars=globalVars)
 
 @route("/post")
 def getPostPage():
