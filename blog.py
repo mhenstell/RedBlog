@@ -1,23 +1,12 @@
 #!/usr/bin/python
 
-import bottle, redis, time, md5
-
-from beaker.middleware import SessionMiddleware
+import bottle, redis, time, hashlib
 
 from bottle import route, run, request, response, template, view, static_file
 
-r = redis.Redis(host='localhost', port=6380, db=0)
+r = redis.Redis(host='localhost', port=6379, db=0)
 
-session_opts = {
-    'session.type': 'redis',
-    'session.url': '127.0.0.1:6380',
-    'session.cookie_expires': 300,
-    'session.auto': True,
-    'cookie_domain': '.evildoin.gs',
-    'key': 'evildoings'
-    }
 
-app = SessionMiddleware(bottle.app(), session_opts)
 
 @route('/css/:filename')
 def send_css(filename):
@@ -104,19 +93,37 @@ def admin():
 	
 @route("/admin/login")
 def login():
-	handle = "max"
-	m = md5.new(handle + str(time.time()))
+	userName = "max"
+	
+	getOrCreateSession(userName)
+	
+	return "Success"
+
+
+
+
+
+def getOrCreateSession(userName):
+	if getCurrentUser():
+		print "User %s already logged in."%(getCurrentUser())
+		return True
+	
+	m = hashlib.md5()
+	m.update(userName)
+	m.update(str(time.time()))
 	sessionId = m.hexdigest()
+	
+	print "New session for %s: %s"%(userName, sessionId)
+	
 	response.set_cookie('sessionId', sessionId)
-	
-	r.set("sessions:%s:userName"%(sessionId), handle)
-	
-	print sessionId
-	
-	return getRecentPosts()
+	r.setex("sessions:%s:userName"%(sessionId), userName, 260000)
+	return True
 
+def getUserName(sessionId):
+	return r.get('sessions:%s:userName'%(sessionId))
 
-
+def getCurrentSessionId():
+	return request.COOKIES.get('sessionId')
 
 def getCurrentUser():
 	sessionId = request.COOKIES.get('sessionId')
@@ -124,7 +131,6 @@ def getCurrentUser():
 		return None
 	userName = r.get('sessions:%s:userName'%(sessionId))
 	return userName
-
 
 def getUserInfo(userName):
 	userInfo = {}
@@ -145,7 +151,20 @@ def getPost(id):
 	post['summary'] = r.get("posts:%s:summary"%(id))
 	post['tagIds'] = r.smembers("posts:%s:tagIds"%(id))
 	return post
-	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 def auth(type, request):
 	sessionId = request.COOKIES.get('sessionId')
 	if sessionId is None:
@@ -174,4 +193,4 @@ globalVars['loggedInUser'] = False
 if __name__ == "__main__":
 
 	bottle.debug(True)
-	run(app, host="localhost", port=8080, reloader=True)
+	run( host="localhost", port=8080, reloader=True)
