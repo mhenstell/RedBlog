@@ -6,20 +6,18 @@ from bottle import route, run, request, response, template, view, static_file
 
 r = redis.Redis(host='localhost', port=6379, db=0)
 
+ERROR_NOT_LOGGED_IN = 0
+ERROR_NOT_AUTHORIZED = 1
+
+PERMISSION_ADMIN = 0
+PERMISSION_POST = 1
+
+errors = {ERROR_NOT_LOGGED_IN:"Not logged in.", ERROR_NOT_AUTHORIZED:"Not authorized to view that page."}
 
 
 @route('/css/:filename')
 def send_css(filename):
 	return static_file(filename, root='./css')
-
-@bottle.route('/test')
-def test():
-	s = bottle.request.environ.get('beaker.session')
-	
-	s['test'] = s.get('test',0) + 1
-	s.save()
-		
-	return 'Test counter: %d' % s['test']
 
 @route("/")
 def index():
@@ -40,16 +38,22 @@ def getRecentPosts():
 	#return template('recent', posts=posts, globalVars=globalVars)
 	return render('recent', posts)
 
-def render(type, dict):
+def render(type, dict=None):
 	refreshSession()
 	return template(type, passed=dict, globalVars=globalVars)
 
+@route("/test")
+def test():
+	error(ERROR_NOT_AUTHORIZED)
+
+
 @route("/post")
 def getPostPage():
-	if auth('post', request):
-		return template('post', globalVars=globalVars)
-	else:
-		return template('message', globalVars=globalVars, message={'error':"Not Authorized."})
+
+	auth(PERMISSION_POST)
+	
+	return render('post')
+
 
 @route("/post", method="POST")
 def newPost():
@@ -58,7 +62,25 @@ def newPost():
 		url = generateUrl(pid)
 		return template('message', globalVars=globalVars, message={'success':"Sucessfully created %s"%(url)})
 
+def auth(type):
+	userName = getCurrentUser()
+	print userName
+	if not userName: 
+		error(ERROR_NOT_LOGGED_IN)
 
+	permissions = getPermissions(userName)
+	
+	if str(type) in permissions:
+		return True
+	
+	error(ERROR_NOT_AUTHORIZED)
+	
+def getPermissions(userName):
+	return r.smembers("users:%s:permissions"%(userName))
+	
+def error(type):
+	return bottle.redirect("/error/%s"%(type))
+	
 def generateUrl(pid):
 	return r.get('global:siteURL') + "post/%s"%(str(pid))
 	
@@ -81,13 +103,10 @@ def refreshSession():
 
 @route("/admin")
 def admin():
-	refreshSession()
-	print "User: " + globalVars['loggedInUser']
-	userName = getCurrentUser()
-	if userName is None:
-		return template('message', globalVars=globalVars, message={'error':"Not Authorized."})
 	
-	userInfo = getUserInfo(userName)
+	auth(PERMISSION_ADMIN)
+	
+	userInfo = getUserInfo(getCurrentUser())
 	
 	return template('admin', globalVars=globalVars, userInfo=userInfo)
 	
@@ -99,9 +118,10 @@ def login():
 	
 	return "Success"
 
+@route("/error/:error")
+def errorPage(error):
 
-
-
+	return errors[int(error)]
 
 def getOrCreateSession(userName):
 	if getCurrentUser():
@@ -115,7 +135,7 @@ def getOrCreateSession(userName):
 	
 	print "New session for %s: %s"%(userName, sessionId)
 	
-	response.set_cookie('sessionId', sessionId)
+	response.set_cookie('sessionId', sessionId, path='/')
 	r.setex("sessions:%s:userName"%(sessionId), userName, 260000)
 	return True
 
@@ -127,6 +147,7 @@ def getCurrentSessionId():
 
 def getCurrentUser():
 	sessionId = request.COOKIES.get('sessionId')
+	print sessionId
 	if sessionId is None:
 		return None
 	userName = r.get('sessions:%s:userName'%(sessionId))
@@ -165,7 +186,7 @@ def getPost(id):
 
 
 
-def auth(type, request):
+def auths(type, request):
 	sessionId = request.COOKIES.get('sessionId')
 	if sessionId is None:
 		print "No Session ID"
