@@ -5,7 +5,7 @@ bottle.debug(True)
 
 from bottle import route, run, request, response, template, view, static_file
 
-r = redis.Redis(host='localhost', port=6379, db=0)
+r = redis.Redis(host='localhost', port=6380, db=0)
 
 globalVars = {}
 globalVars['siteTitle'] = r.get('site:title')
@@ -43,14 +43,14 @@ def setPost():
 	title = request.forms.get('title')
 	body = request.forms.get('body')
 	datestamp = time.time()
-	handle = r.get('session:%s:handle'%(request.COOKIES.get('sessionId')))
+	handle = r.get('sessions:%s:userName'%(request.COOKIES.get('sessionId')))
 	
 	r.incr('global:nextPostId')
 	pid = r.get('global:nextPostId')
-	r.set('post:%s:title'%(pid), title)
-	r.set('post:%s:body'%(pid), body)
-	r.set('post:%s:datestamp'%(pid), datestamp)
-	r.set('post:%s:user'%(pid), handle)
+	r.set('posts:%s:title'%(pid), title)
+	r.set('posts:%s:body'%(pid), body)
+	r.set('posts:%s:datestamp'%(pid), datestamp)
+	r.set('posts:%s:user'%(pid), handle)
 	
 	r.lpush('posts:recent', pid)
 	
@@ -76,7 +76,7 @@ def login():
 	sessionId = m.hexdigest()
 	response.set_cookie('sessionId', sessionId)
 	
-	r.set("session:%s:userName"%(sessionId), handle)
+	r.set("sessions:%s:userName"%(sessionId), handle)
 	
 	return getRecentPosts()
 
@@ -86,7 +86,7 @@ def getCurrentUser():
 	if sessionId is None:
 		return None
 	
-	userName = r.get('session:%s:userName'%(sessionId))
+	userName = r.get('sessions:%s:userName'%(sessionId))
 	return userName
 
 
@@ -103,12 +103,12 @@ def getUserInfo(userName):
 	
 
 def getPostDictById(id):
-	title = r.get("post:%s:title"%(id))
-	datestamp = r.get("post:%s:datestamp"%(id))
-	user = r.get("post:%s:user"%(id))
-	body = r.get("post:%s:body"%(id))
-	summary = r.get("post:%s:summary"%(id))
-	tagIds = r.smembers("post:%s:tagIds"%(id))
+	title = r.get("posts:%s:title"%(id))
+	datestamp = r.get("posts:%s:datestamp"%(id))
+	user = r.get("posts:%s:user"%(id))
+	body = r.get("posts:%s:body"%(id))
+	summary = r.get("posts:%s:summary"%(id))
+	tagIds = r.smembers("posts:%s:tagIds"%(id))
 	
 	return {'title':title, 'datestamp':datestamp, 'user':user, 'body':body, 'summary':summary, 'tagIds':tagIds}
 
