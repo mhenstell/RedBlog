@@ -94,8 +94,8 @@ def createPost(title, datestamp, user, body):
 		r.set('posts:%s:user'%(pid), handle)
 		r.lpush('posts:recent', pid)
 		return pid
-	except e:
-		print e
+	except Exception:
+		print Exception[0]
 		return False
 
 def refreshSession():
