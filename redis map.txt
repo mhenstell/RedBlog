@@ -7,7 +7,7 @@ POSTS
 	posts:pid:user
 	posts:pid:summary
 	posts:pid:tagIds
-	postss:recent
+	posts:recent
 
 SESSION
 	session:sid:userName
