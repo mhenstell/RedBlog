@@ -1,17 +1,31 @@
 #!/usr/bin/python
 
 import bottle, redis, time, md5
-bottle.debug(True)
+
+from beaker.middleware import SessionMiddleware
 
 from bottle import route, run, request, response, template, view, static_file
 
 r = redis.Redis(host='localhost', port=6380, db=0)
 
+session_opts = {
+    'session.type': 'cookie',
+    'session.cookie_expires': 300,
+    'session.auto': True
+    }
 
+app = SessionMiddleware(bottle.app(), session_opts)
 
 @route('/css/:filename')
 def send_css(filename):
 	return static_file(filename, root='./css')
+
+@bottle.route('/test')
+def test():
+	s = bottle.request.environ.get('beaker.session')
+	s['test'] = s.get('test',0) + 1
+	s.save()
+	return 'Test counter: %d' % s['test']
 
 @route("/")
 def index():
@@ -91,6 +105,8 @@ def login():
 	return getRecentPosts()
 
 
+
+
 def getCurrentUser():
 	sessionId = request.COOKIES.get('sessionId')
 	if sessionId is None:
@@ -144,4 +160,7 @@ globalVars['siteURL'] = r.get('global:siteURL')
 globalVars['loggedInUser'] = False
 
 
-run(host="localhost", port=8080, reloader=True)
+if __name__ == "__main__":
+
+	bottle.debug(True)
+	run(app, host="localhost", port=8080, reloader=True)
