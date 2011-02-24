@@ -7,8 +7,7 @@ from bottle import route, run, request, response, template, view, static_file
 
 r = redis.Redis(host='localhost', port=6380, db=0)
 
-globalVars = {}
-globalVars['siteTitle'] = r.get('site:title')
+
 
 @route('/css/:filename')
 def send_css(filename):
@@ -20,15 +19,15 @@ def index():
 
 @route("/post/:id")
 def getPostById(id):
-	pass
+	node = {'post':['title', 'body', 'userName', 'datestamp']}
+	return template('node', globalVars=globalVars, node=node)
 
 @route("/recent")
 def getRecentPosts():
 	recentPosts = r.lrange("posts:recent", 0, 9)
 	posts = {}
 	for x in range(0, len(recentPosts)):
-		posts[x] = getPostDictById(recentPosts[x])
-	print posts
+		posts[x] = getPost(recentPosts[x])
 	return template('recent', posts=posts, globalVars=globalVars)
 
 @route("/post")
@@ -36,36 +35,45 @@ def getPostPage():
 	if auth('post', request):
 		return template('post', globalVars=globalVars)
 	else:
-		return template('error', globalVars=globalVars, error="Not Authorized.")
+		return template('message', globalVars=globalVars, message={'error':"Not Authorized."})
 
 @route("/post", method="POST")
-def setPost():
-	title = request.forms.get('title')
-	body = request.forms.get('body')
-	datestamp = time.time()
-	handle = r.get('sessions:%s:userName'%(request.COOKIES.get('sessionId')))
+def newPost():
+	pid = createPost(request.forms.get('title'), time.time(), getCurrentUser(), request.forms.get('body'))
+	if pid is not False:
+		url = generateUrl(pid)
+		return template('message', globalVars=globalVars, message={'success':"Sucessfully created %s"%(url)})
+
+
+def generateUrl(pid):
+	return r.get('global:siteURL') + "post/%s"%(str(pid))
 	
-	r.incr('global:nextPostId')
-	pid = r.get('global:nextPostId')
-	r.set('posts:%s:title'%(pid), title)
-	r.set('posts:%s:body'%(pid), body)
-	r.set('posts:%s:datestamp'%(pid), datestamp)
-	r.set('posts:%s:user'%(pid), handle)
-	
-	r.lpush('posts:recent', pid)
-	
-	return "Success"
+def createPost(title, datestamp, user, body):
+	try:
+		r.incr('global:nextPostId')
+		pid = r.get('global:nextPostId')
+		r.set('posts:%s:title'%(pid), title)
+		r.set('posts:%s:body'%(pid), body)
+		r.set('posts:%s:datestamp'%(pid), datestamp)
+		r.set('posts:%s:user'%(pid), handle)
+		r.lpush('posts:recent', pid)
+		return pid
+	except e:
+		print e
+		return False
+
+def refreshSession():
+	globalVars['loggedInUser'] = getCurrentUser()
 
 @route("/admin")
 def admin():
-
-	
+	refreshSession()
+	print "User: " + globalVars['loggedInUser']
 	userName = getCurrentUser()
 	if userName is None:
-		return template('error', globalVars=globalVars, error="Not Authorized.")
+		return template('message', globalVars=globalVars, message={'error':"Not Authorized."})
 	
 	userInfo = getUserInfo(userName)
-	
 	
 	return template('admin', globalVars=globalVars, userInfo=userInfo)
 	
@@ -78,6 +86,8 @@ def login():
 	
 	r.set("sessions:%s:userName"%(sessionId), handle)
 	
+	print sessionId
+	
 	return getRecentPosts()
 
 
@@ -85,10 +95,8 @@ def getCurrentUser():
 	sessionId = request.COOKIES.get('sessionId')
 	if sessionId is None:
 		return None
-	
 	userName = r.get('sessions:%s:userName'%(sessionId))
 	return userName
-
 
 
 def getUserInfo(userName):
@@ -98,20 +106,19 @@ def getUserInfo(userName):
 	userInfo['email'] = r.get("users:%s:email"%(userName))
 	userInfo['submissions'] = r.lrange("users:%s:submissions"%(userName), 0, -1)
 	userInfo['role'] = r.lrange("users:%s:roles"%(userName), 0, -1)
-	
 	return userInfo
 	
 
-def getPostDictById(id):
-	title = r.get("posts:%s:title"%(id))
-	datestamp = r.get("posts:%s:datestamp"%(id))
-	user = r.get("posts:%s:user"%(id))
-	body = r.get("posts:%s:body"%(id))
-	summary = r.get("posts:%s:summary"%(id))
-	tagIds = r.smembers("posts:%s:tagIds"%(id))
+def getPost(id):
+	post = {}
+	post['title'] = r.get("posts:%s:title"%(id))
+	post['datestamp'] = r.get("posts:%s:datestamp"%(id))
+	post['user'] = r.get("posts:%s:user"%(id))
+	post['body'] = r.get("posts:%s:body"%(id))
+	post['summary'] = r.get("posts:%s:summary"%(id))
+	post['tagIds'] = r.smembers("posts:%s:tagIds"%(id))
+	return post
 	
-	return {'title':title, 'datestamp':datestamp, 'user':user, 'body':body, 'summary':summary, 'tagIds':tagIds}
-
 def auth(type, request):
 	sessionId = request.COOKIES.get('sessionId')
 	if sessionId is None:
@@ -131,5 +138,10 @@ def auth(type, request):
 		print "User %s authorized for %s"%(userName, type)
 		return True
 
+globalVars = {}
+globalVars['siteTitle'] = r.get('global:siteTitle')
+globalVars['siteURL'] = r.get('global:siteURL')
+globalVars['loggedInUser'] = False
 
-run(host="localhost", port=8080, reloader=False)
+
+run(host="localhost", port=8080, reloader=True)
